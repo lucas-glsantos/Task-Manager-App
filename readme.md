@@ -62,7 +62,7 @@
 
 ### Task Manager em localhost:
 
-![TaskManageDev](/Assets/img/TaskManageDev.png)
+![TaskManageDev](/Assets/Img/TaskManageDev.png)
 
 ---
 
@@ -154,7 +154,7 @@ npm run dev
 Caso apareça a seguinte mensagem de erro no terminal:        
 
 ---
-![ImagemErroConexaoMongoDB](/Assets/img/ErroECONNREFUSED.png)      
+![ImagemErroConexaoMongoDB](/Assets/Img/ErroECONNREFUSED.png)      
 
 ---
 
@@ -179,14 +179,14 @@ Selecione "Javascript" como variante
 ```
 
 ---
-![InstallVITE](Assets/img/InstallVITE.png)
+![InstallVITE](/Assets/Img/InstallVITE.png)
 
 ---
 
 Se estiver utilizando a ultima versão do npm o servidor se iniciara automaticamente:
 
 ---
-![StartServerFront](Assets/img/StartFrontServer.png)
+![StartServerFront](/Assets/Img/StartFrontServer.png)
 
 ---
 
