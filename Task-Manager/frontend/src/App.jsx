@@ -6,7 +6,7 @@ import TaskDetailPage from "./pages/TaskDetailPage";
 
 const App = () => {
   return (
-    <div className="min-h-screen w-full" data-theme="dim">
+    <div className="min-h-screen w-full" data-theme="dark">
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/create" element={<CreatePage />} />

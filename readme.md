@@ -62,7 +62,7 @@
 
 ### Task Manager em localhost:
 
-![TaskManageDev](/Assets/Img/TaskManageDev.png)
+![TaskManageDev](./Task-Manager/Assets/Img/TaskManageDev.png)
 
 ---
 
@@ -154,7 +154,7 @@ npm run dev
 Caso apareça a seguinte mensagem de erro no terminal:        
 
 ---
-![ImagemErroConexaoMongoDB](/Assets/Img/ErroECONNREFUSED.png)      
+![ImagemErroConexaoMongoDB](./Task-Manager/Assets/Img/ErroECONNREFUSED.png)      
 
 ---
 
@@ -179,15 +179,15 @@ Selecione "Javascript" como variante
 ```
 
 ---
-![InstallVITE](/Assets/Img/InstallVITE.png)
+![InstallVITE](./Task-Manager/Assets/Img/InstallVITE.png)
 
 ---
 
 Se estiver utilizando a ultima versão do npm o servidor se iniciara automaticamente:
 
 ---
-![StartServerFront](/Assets/Img/StartFrontServer.png)
+![StartServerFront](./Task-Manager/Assets/Img/StartFrontServer.png)
 
 ---
 
-📚 Projeto inspirado no bootcamp da [FreeCodeCamp](https://www.youtube.com/watch?v=F9gB5b4jgOI) solidificando minha trilha de aprendizagem em Desenvolvimento Full-Stack.
+📚 Projeto inspirado no bootcamp da [FreeCodeCamp](https://www.youtube.com/watch?v=F9gB5b4jgOI) solidificando minha trilha de aprendizagem em Desenvolvimento MERN Full-Stack.
