@@ -1,11 +1,9 @@
 import Task from "../models/Task.js";
 
-export async function getAllTasks(_, res) {
-    // Buscar todas as Tarefas
+export async function getAllTasks(req, res) {
     try {
-        const tasks = await Task.find().sort({ createdAt: -1 }); // -1 classifica em desc, ordem (mais recente primeiro)
+        const tasks = await Task.find({ user: req.user._id }).sort({ createdAt: -1 });
         res.status(200).json(tasks);
-
     } catch (error) {
         console.error("Erro em getAllTasks controller", error);
         res.status(500).json({ message: "Erro interno no servidor" });
@@ -13,23 +11,20 @@ export async function getAllTasks(_, res) {
 };
 
 export async function getTaskById(req, res) {
-    // Buscar Tarefa pelo Id
     try {
-        const task = await Task.findById(req.params.id);
-        if(!task) return res.status(404).json({ message: "Tarefa não encontrada" });
+        const task = await Task.findOne({ _id: req.params.id, user: req.user._id });
+        if (!task) return res.status(404).json({ message: "Tarefa não encontrada" });
         res.status(200).json(task);
-
     } catch (error) {
         console.error("Erro em getTaskById controller", error);
         res.status(500).json({ message: "Erro interno no servidor" });
     }
-}
+};
 
 export async function createTask(req, res) {
-    // Criar Tarefas
     try {
         const { title, content } = req.body;
-        const task = new Task({ title, content });
+        const task = new Task({ title, content, user: req.user._id });
 
         const savedTask = await task.save();
         res.status(201).json(savedTask);
@@ -40,34 +35,27 @@ export async function createTask(req, res) {
 };
 
 export async function updateTask(req, res) {
-    // Atualizar Tarefas
     try {
         const { title, content } = req.body;
-        const updateTask = await Task.findByIdAndUpdate(
-            req.params.id,
+        const updatedTask = await Task.findOneAndUpdate(
+            { _id: req.params.id, user: req.user._id },
             { title, content },
-            {
-                new: true,
-            }
+            { new: true }
         );
 
+        if (!updatedTask) return res.status(404).json({ message: "Tarefa não encontrada" });
 
-        if (!updateTask) return res.status(404).json({ message: "Tarefa não encotrada" });
-
-
-        res.status(200).json(updateTask);
+        res.status(200).json(updatedTask);
     } catch (error) {
         console.error("Erro em updateTask controller", error);
         res.status(500).json({ message: "Erro interno no servidor" });
     }
-
 };
 
 export async function deleteTask(req, res) {
-    // Deletar Tarefas
     try {
-        const deletedTask = await Task.findByIdAndDelete(req.params.id);
-        if(!deletedTask) return res.status(404).json({ message: "Tarefa não encontrado" });
+        const deletedTask = await Task.findOneAndDelete({ _id: req.params.id, user: req.user._id });
+        if (!deletedTask) return res.status(404).json({ message: "Tarefa não encontrada" });
 
         res.status(200).json({ message: "Tarefa deletada com sucesso!" });
     } catch (error) {
@@ -75,4 +63,3 @@ export async function deleteTask(req, res) {
         res.status(500).json({ message: "Erro interno no servidor" });
     }
 };
-

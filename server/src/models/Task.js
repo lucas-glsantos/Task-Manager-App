@@ -1,8 +1,5 @@
 import mongoose from "mongoose";
 
-// 1- Criar o schema
-// 2- Modelo baseado nesse schema
-
 const taskSchema = new mongoose.Schema(
     {
         title: {
@@ -13,8 +10,13 @@ const taskSchema = new mongoose.Schema(
             type: String,
             required: true,
         },
+        user: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            required: true,
+        },
     },
-    { timestamps: true } // createdAt, updateAt
+    { timestamps: true }
 );
 
 const Task = mongoose.model("Task", taskSchema);
