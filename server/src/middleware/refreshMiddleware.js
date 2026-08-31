@@ -21,3 +21,24 @@ export const refreshTokenValidator = async (req, res, next) => {
 		res.status(403).json({ message: "Token inválido ou expirado" });
 	}
 };
+
+// Verificar se refreshToken está proximo de expirar
+export const checkTokenExpiration  = async (req, res, next) => {
+	const { refreshToken } = req.body;
+	const user = await User.findOne({ refreshToken });
+
+	if (!user) return res.status(401).json({ message: 'Token inválido' });
+
+	const timeUntilExpiry = user.expiresAt - Date.now();
+	const daysUntilExpiry = timeUntilExpiry / (1000 * 60 * 60 * 24);
+
+	if (daysUntilExpiry < 1) {
+		// Token expirando em menos de 1 dia, pode forçar renovação
+		return res.status(401).json({
+			message: 'Token expirará em breve',
+			shouldRenew: true
+		});
+	}
+
+	next();
+};
