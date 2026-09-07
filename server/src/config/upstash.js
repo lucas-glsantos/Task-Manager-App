@@ -5,7 +5,7 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-// ratelimiter que permita 100 solicitações a cada 60s
+// 20 solicitações a cada 60s (sliding window)
 const ratelimit = new Ratelimit({
 	redis: Redis.fromEnv(),
 	limiter: Ratelimit.slidingWindow(20, "60 s"),

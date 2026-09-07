@@ -1,56 +1,64 @@
+import dotenv from "dotenv";
+dotenv.config();
+
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
 import path from "node:path";
-
+import { fileURLToPath } from "node:url";
 import { setServers } from "node:dns/promises";
+
 import { protect } from "./src/middleware/authMiddleware.js";
 import { connectDB } from "./src/config/db.js";
-import { refreshTokenValidator } from "./src/middleware/refreshMiddleware.js";
-
-import rateLimiter from "./src/middleware/rateLimiter.js";
 import tasksRoutes from "./src/routes/tasksRoutes.js";
 import authRoutes from "./src/routes/authRoutes.js";
 
-import User from "./src/models/User.js";
-
-setServers(["1.1.1.1", "8.8.8.8"]); // Forçar o uso de DNS públicos no código Caso "Error: querySrv ECONNREFUSED"
-
-dotenv.config();
+setServers(["1.1.1.1", "8.8.8.8"]); // DNS públicos (evita querySrv ECONNREFUSED)
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const __dirname = path.resolve();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-if (process.env.NODE_ENV === "production") {
-	app.use(express.static(path.join(__dirname, "../client/dist")));
+const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "http://localhost:5173";
 
-	app.get("*", (req, res) => {
-		res.sendFile(path.join(__dirname, "../client", "dist", "index.html"));
-	});
-}
-
-// Cors Config
 app.use(
 	cors({
-		origin: process.env.NODE_ENV === 'production'
-			? "http://localhost:5173" // Dominio personalizado
-			: "http://localhost:5173", // Local Address
-		credentials: true, 
+		origin: CLIENT_ORIGIN,
+		credentials: true,
 	}),
 );
 
 app.use(express.json());
-app.use(rateLimiter);
 
+app.get("/api/health", (req, res) => res.json({ status: "ok" }));
 
 app.use("/api/auth", authRoutes);
-app.post("/api/auth/logout", protect, async (req, res) => {
-	// Remover refreshToken do banco, invalidation imediata
-	await User.findByIdAndUpdate(req.user._id, { refreshToken: null });
-	res.json({ message: "Logout bem-sucedido" });
+app.use("/api/tasks", protect, tasksRoutes);
+
+// 404 para rotas /api desconhecidas (antes do static)
+app.use("/api", (req, res) => res.status(404).json({ message: "Rota não encontrada" }));
+
+if (process.env.NODE_ENV === "production") {
+	const dist = path.join(__dirname, "../client/dist");
+	app.use(express.static(dist));
+
+	// Express 5: "*" puro é inválido (path-to-regexp v8). Usar /*splat.
+	app.get("/*splat", (req, res) => {
+		res.sendFile(path.join(dist, "index.html"));
+	});
+}
+
+// Error handler global ÚNICO (elimina os handlers duplicados por router)
+app.use((err, req, res, next) => {
+	console.error("Erro não tratado:", err);
+	if (err?.code === 11000) {
+		return res.status(400).json({ message: "Email já cadastrado" });
+	}
+	if (err?.name === "ValidationError") {
+		return res.status(400).json({ message: "Dados inválidos", error: err.message });
+	}
+	return res.status(500).json({ message: "Erro interno no servidor" });
 });
-app.use("/api/tasks", protect, tasksRoutes); // Tudo protegido
 
 connectDB().then(() => {
 	app.listen(PORT, () => {

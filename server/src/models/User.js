@@ -18,24 +18,29 @@ const userSchema = new mongoose.Schema(
       trim: true,
       match: [/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})$/, 'E-mail inválido']
     },
-		password: { 
-      type: String, 
-      required: true, 
-      minlength: [8, 'Senha muito curta'], 
-      maxlength: [128, 'Senha muito longa']
+		password: {
+      type: String,
+      required: true,
+      minlength: [8, 'Senha muito curta'],
+      maxlength: [128, 'Senha muito longa'],
+      select: false,
     },
-		refreshToken: { type: String },
-    expiresAt: { type: Date, expires: '7d' },
+		refreshToken: { type: String, select: false },
+    // Expiração do refresh token (sem TTL: TTL apagaria o USER inteiro).
+    // A expiração é validada em código (JWT exp + comparação de datas).
+    expiresAt: { type: Date },
 	},
 	{ timestamps: true },
 );
 
 userSchema.index({ refreshToken: 1 }, { unique: true, sparse: true });
 
-userSchema.pre('save', async function (next) {
-	if (!this.isModified('password')) return next();
+// Mongoose 7+: hook async NÃO recebe `next`.
+// O padrão antigo `async function (next) { ... next() }` lança
+// "next is not a function" no User.create() -> era a causa raiz do 500 no /register.
+userSchema.pre('save', async function () {
+	if (!this.isModified('password')) return;
 	this.password = await bcrypt.hash(this.password, 12);
-	next();
 });
 
 userSchema.methods.comparePassword = function (candidate) {

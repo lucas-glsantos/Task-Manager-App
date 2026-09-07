@@ -1,69 +1,111 @@
 import User from "../models/User.js";
 import jwt from "jsonwebtoken";
+import { validateRegister } from "../utils/validateUser.js";
 
-const signToken = (id) =>
-	jwt.sign({ id }, process.env.JWT_SECRET, {
-		expiresIn: process.env.JWT_EXPIRES_IN || "7d",
-	});
+const ACCESS_EXPIRES = process.env.JWT_ACCESS_EXPIRES || process.env.JWT_EXPIRES_IN || "15m";
+const REFRESH_EXPIRES = process.env.JWT_REFRESH_EXPIRES || "7d";
 
-export const register = async (req, res) => {
+const signAccessToken = (id) =>
+	jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: ACCESS_EXPIRES });
+
+const signRefreshToken = (id) =>
+	jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: REFRESH_EXPIRES });
+
+const REFRESH_MS = 7 * 24 * 60 * 60 * 1000;
+
+const toPublicUser = (user) => ({
+	id: user._id,
+	name: user.name,
+	email: user.email,
+});
+
+export const register = async (req, res, next) => {
 	try {
-		const { name, email, password } = req.body;
-		const exists = await User.findOne({ email });
-		if (exists) return res.status(400).json({ message: "Email já cadastrado" });
+		const { error: validationError, value } = validateRegister(req.body);
+		if (validationError) {
+			return res.status(400).json({
+				message: "Dados inválidos",
+				details: validationError.details.map((d) => d.message),
+			});
+		}
 
-		const user = await User.create({ name, email, password });
-		const accessToken = signToken(user._id);
-		const refreshToken = signToken(user._id); // mesma função que signToken, mas com expiração diferente
+		const { name, email, password } = value;
 
-		// Atualizar refreshToken no banco
+		// Criação direta: o índice unique do Mongo resolve race condition.
+		// Erro 11000 = email duplicado (tratado no catch).
+		const user = await User.create({
+			name,
+			email,
+			password,
+			refreshToken: undefined,
+			expiresAt: undefined,
+		});
+
+		const token = signAccessToken(user._id);
+		const refreshToken = signRefreshToken(user._id);
+
 		user.refreshToken = refreshToken;
-		// Definir data de expiração
-		const ttlDays = 7; // Mesmo que usar process.env.JWT_REFRESH_EXPIRES
-		user.expiresAt = new Date(Date.now() + ttlDays * 24 * 60 * 60 * 1000);
-
+		user.expiresAt = new Date(Date.now() + REFRESH_MS);
 		await user.save();
 
-		res.status(201).json({
-			token: accessToken,
+		return res.status(201).json({
+			token,
 			refreshToken,
-			user: { id: user._id, name: user.name, email: user.email },
+			user: toPublicUser(user),
 		});
 	} catch (error) {
-		res.status(500).json({ message: "Erro no registro", error: error.message });
+		if (error.code === 11000) {
+			return res.status(400).json({ message: "Email já cadastrado" });
+		}
+		if (error.name === "ValidationError") {
+			return res.status(400).json({ message: "Dados inválidos", error: error.message });
+		}
+		return next(error);
 	}
 };
 
-export const login = async (req, res) => {
+export const login = async (req, res, next) => {
 	try {
 		const { email, password } = req.body;
-		const user = await User.findOne({ email }).select("+password");
+		if (!email || !password) {
+			return res.status(400).json({ message: "Email e senha são obrigatórios" });
+		}
 
+		const user = await User.findOne({ email }).select("+password +refreshToken");
 		if (!user || !(await user.comparePassword(password))) {
 			return res.status(401).json({ message: "Credenciais inválidas" });
 		}
 
-		const accessToken = signToken(user._id);
-		const refreshToken = signToken(user._id);
+		const token = signAccessToken(user._id);
+		const refreshToken = signRefreshToken(user._id);
 
-		// Atualizar refreshToken no banco
 		user.refreshToken = refreshToken;
-		// Definir data de expiração
-		const tllDays = 7;
-		user.expiresAt = new Date(Date.now() + tllDays * 24 * 60 * 60 * 1000);
-
+		user.expiresAt = new Date(Date.now() + REFRESH_MS);
 		await user.save();
 
-		res.status(201).json({
-			accessToken,
+		return res.status(200).json({
+			token,
 			refreshToken,
-			user: { id: user._id, name: user.name, email: user.email },
+			user: toPublicUser(user),
 		});
 	} catch (error) {
-		res.status(500).json({ message: "Erro no login", error: error.message });
+		return next(error);
+	}
+};
+
+export const logout = async (req, res, next) => {
+	try {
+		// $unset: atribuir `undefined` em update é ignorado pelo Mongoose
+		// e o refresh continuaria válido após logout (falha de segurança).
+		await User.findByIdAndUpdate(req.user._id, {
+			$unset: { refreshToken: 1, expiresAt: 1 },
+		});
+		return res.status(200).json({ message: "Logout bem-sucedido" });
+	} catch (error) {
+		return next(error);
 	}
 };
 
 export const me = async (req, res) => {
-	res.json(req.user);
+	res.json(toPublicUser(req.user));
 };

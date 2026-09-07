@@ -1,44 +1,29 @@
-// Validar refreshToken antes de permitir renewal
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 
+// Valida o refresh token UMA vez e anexa o user em req.user.
+// O controller reutiliza req.user (sem segundo verify + find).
 export const refreshTokenValidator = async (req, res, next) => {
-	const { refreshToken } = req.body;
-
-	if (!refreshToken) return res.status(401).json({ message: "Token refresh ausente" });
-
 	try {
+		const { refreshToken } = req.body;
+		if (!refreshToken) {
+			return res.status(401).json({ message: "Token refresh ausente" });
+		}
+
 		const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
-		const user = await User.findById(decoded.id);
+		const user = await User.findById(decoded.id).select("+refreshToken");
 
 		if (!user || user.refreshToken !== refreshToken) {
 			return res.status(403).json({ message: "Token refresh inválido" });
 		}
 
+		if (user.expiresAt && user.expiresAt.getTime() < Date.now()) {
+			return res.status(403).json({ message: "Token refresh expirado" });
+		}
+
 		req.user = user;
-		next();
+		return next();
 	} catch (error) {
-		res.status(403).json({ message: "Token inválido ou expirado" });
+		return res.status(403).json({ message: "Token inválido ou expirado" });
 	}
-};
-
-// Verificar se refreshToken está proximo de expirar
-export const checkTokenExpiration  = async (req, res, next) => {
-	const { refreshToken } = req.body;
-	const user = await User.findOne({ refreshToken });
-
-	if (!user) return res.status(401).json({ message: 'Token inválido' });
-
-	const timeUntilExpiry = user.expiresAt - Date.now();
-	const daysUntilExpiry = timeUntilExpiry / (1000 * 60 * 60 * 24);
-
-	if (daysUntilExpiry < 1) {
-		// Token expirando em menos de 1 dia, pode forçar renovação
-		return res.status(401).json({
-			message: 'Token expirará em breve',
-			shouldRenew: true
-		});
-	}
-
-	next();
 };
