@@ -1,6 +1,6 @@
 import User from "../models/User.js";
 import jwt from "jsonwebtoken";
-import { validateRegister } from "../utils/validateUser.js";
+import { validateLogin, validateRegister } from "../utils/validateUser.js";
 
 const ACCESS_EXPIRES = process.env.JWT_ACCESS_EXPIRES || process.env.JWT_EXPIRES_IN || "15m";
 const REFRESH_EXPIRES = process.env.JWT_REFRESH_EXPIRES || "7d";
@@ -66,11 +66,15 @@ export const register = async (req, res, next) => {
 
 export const login = async (req, res, next) => {
 	try {
-		const { email, password } = req.body;
-		if (!email || !password) {
-			return res.status(400).json({ message: "Email e senha são obrigatórios" });
+		const { error: validationError, value } = validateLogin(req.body);
+		if (validationError) {
+			return res.status(400).json({
+				message: "Email e senha são obrigatórios",
+				details: validationError.details.map((d) => d.message),
+			});
 		}
 
+		const { email, password } = value;
 		const user = await User.findOne({ email }).select("+password +refreshToken");
 		if (!user || !(await user.comparePassword(password))) {
 			return res.status(401).json({ message: "Credenciais inválidas" });
