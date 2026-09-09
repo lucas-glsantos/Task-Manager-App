@@ -49,7 +49,7 @@ const CreatePage = () => {
     <div className="min-h-screen bg-base200">
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-2xl mx-auto">
-          <Link to={"/"} className="btn btn-ghost mb-6">
+          <Link to={"/"} className="btn btn-ghost mb-6 outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-500">
             <ArrowLeftIcon className="size-5" />
             Voltar
           </Link>
@@ -60,11 +60,13 @@ const CreatePage = () => {
               <form onSubmit={handleSubmit}>
                 <div className="form-control mb-4">
                   <label className="label">
-                    <span className="label-text">Título</span>
+                    <span className="label-text">
+                      Título:
+                    </span>
                   </label>
                   <input type="text"
                     placeholder="Titulo da Tarefa"
-                    className="input input-bordered"
+                    className="input input-bordered outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-500"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                   />
@@ -72,18 +74,20 @@ const CreatePage = () => {
 
                 <div className="form-control mb-4">
                   <label className="label">
-                    <span className="label-text">Conteúdo</span>
+                    <span className="label-text">
+                      Conteúdo:
+                    </span>
                   </label>
                   <textarea
                     placeholder="Escreva aqui sua tarefa..."
-                    className="textarea textarea-bordered h-32"
+                    className="textarea textarea-bordered h-32 outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-500"
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
                   />
                 </div>
 
                 <div className="card-actions justify-end">
-                  <button type="submit" className="btn btn-primary" disabled={loading}>
+                  <button type="submit" className="btn btn-primary outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-500" disabled={loading}>
                     {loading ? "Criando..." : "Criar Tarefa"}
                   </button>
                 </div>
