@@ -76,3 +76,5 @@ if (!process.env.VERCEL){
 } else {
 	connectDB(); // Conecta Lazy por invocação com cache
 };
+
+export default server;
