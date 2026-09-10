@@ -1,6 +1,4 @@
 import dotenv from "dotenv";
-dotenv.config();
-
 import express from "express";
 import cors from "cors";
 import path from "node:path";
@@ -12,6 +10,8 @@ import { connectDB } from "./src/config/db.js";
 import tasksRoutes from "./src/routes/tasksRoutes.js";
 import authRoutes from "./src/routes/authRoutes.js";
 
+dotenv.config();
+
 setServers(["1.1.1.1", "8.8.8.8"]); // DNS públicos (evita querySrv ECONNREFUSED)
 
 const app = express();
@@ -19,18 +19,22 @@ const PORT = process.env.PORT || 5000;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "http://localhost:5173";
+const allowedOrigin = [process.env.CLIENT_ORIGIN, "http://localhost:5173"].filter(Boolean);
 
 app.use(
 	cors({
-		origin: CLIENT_ORIGIN,
+		origin: (origin, cb) => {
+			if (!origin) return cb(null, true);
+			if (allowedOrigin.includes(origin)) return cb(null, true);
+			if (process.env.VERCEL_ENV === "preview" && origin.endsWith(".vercel.app")) return cb(null, true);
+
+			return cb(new Error("Error CORS"));
+		},
 		credentials: true,
 	}),
 );
 
 app.use(express.json());
-
-app.get("/api/health", (req, res) => res.json({ status: "ok" }));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/tasks", protect, tasksRoutes);
@@ -38,7 +42,7 @@ app.use("/api/tasks", protect, tasksRoutes);
 // 404 para rotas /api desconhecidas (antes do static)
 app.use("/api", (req, res) => res.status(404).json({ message: "Rota não encontrada" }));
 
-if (process.env.NODE_ENV === "production") {
+if (process.env.NODE_ENV === "production" && !process.env.VERCEL) {
 	const dist = path.join(__dirname, "../client/dist");
 	app.use(express.static(dist));
 
@@ -49,22 +53,26 @@ if (process.env.NODE_ENV === "production") {
 }
 
 // Error handler global ÚNICO (elimina os handlers duplicados por router)
-app.use((err, req, res, next) => {
-	console.error("Erro não tratado:", err);
-	if (err?.code === 11000) {
+app.use((error, req, res, next) => {
+	console.error("Erro não tratado:", error);
+	if (error?.code === 11000) {
 		return res.status(400).json({ message: "Email já cadastrado" });
 	}
-	if (err?.name === "ValidationError") {
-		return res.status(400).json({ message: "Dados inválidos", error: err.message });
+	if (error?.name === "ValidationError") {
+		return res.status(400).json({ message: "Dados inválidos", error: error.message });
 	}
-	if (err?.name === "CastError") {
+	if (error?.name === "CastError") {
 		return res.status(400).json({ message: "ID inválido" });
 	}
 	return res.status(500).json({ message: "Erro interno no servidor" });
 });
 
-connectDB().then(() => {
-	app.listen(PORT, () => {
-		console.log("Servidor rodando na PORTA:", PORT);
+if (!process.env.VERCEL){
+	connectDB().then(() => {
+		app.listen(PORT, () => {
+			console.log("Servidor rodando na PORTA:", PORT);
+		});
 	});
-});
+} else {
+	connectDB(); // Conecta Lazy por invocação com cache
+};
