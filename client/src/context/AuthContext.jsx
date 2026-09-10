@@ -10,7 +10,7 @@ export function AuthProvider({ children }) {
     const [user, setUser] = useState(() => getStoredUser());
     const [loading, setLoading] = useState(() => Boolean(getToken()));
 
-    // Revalida a sessão no boot via GET /me (Evita tela logada com token Morto)
+    // Revalida sessão no boot via GET /me, Se acesso Expirou, Interceptor renova e faz Retry
     useEffect(() => {
         let cancelled = false;
         const boot = async () => {
@@ -33,9 +33,14 @@ export function AuthProvider({ children }) {
             }
         };
         boot();
-        return () => {
-            cancelled = true;
-        };
+        return () => { cancelled = true; };
+    }, []);
+
+    // Se Refresh de 7d falhar no meio da Sessão com Home já montada, Axios avisa via event e derruba User -> ProtectedRoute redireciona
+    useEffect(() => {
+        const tokenExpired = () => setUser(null);
+        window.addEventListener("auth:session-expired", tokenExpired);
+        return () => window.removeEventListener("auth:session-expired", tokenExpired);
     }, []);
 
 
@@ -61,6 +66,7 @@ export function AuthProvider({ children }) {
             saveSession(res.data);
             setUser(res.data.user);
             return { ok: true };
+
         } catch (error) {
             return {
                 ok: false,
@@ -82,9 +88,7 @@ export function AuthProvider({ children }) {
     }, []);
 
     return (
-        <AuthContext.Provider 
-            value={{ user, loading, login, register, logout }}
-        >
+        <AuthContext.Provider value={{ user, loading, login, register, logout }}>
             {children}
         </AuthContext.Provider>
     );

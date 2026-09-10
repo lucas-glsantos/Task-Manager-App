@@ -11,8 +11,8 @@ const CreatePage = () => {
 
   const navigate = useNavigate();
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
 
     if(!title.trim() || !content.trim()) {
       toast.error("Todos os campos são obrigatórios.");
@@ -26,12 +26,12 @@ const CreatePage = () => {
         content,
       });
 
-      
       toast.success("Tarefa criada com sucesso!");
       navigate("/");
+
     } catch (error) {
       console.log("Erro ao criar tarefa", error);
-      if (error.response.status === 429) {
+      if (error.response?.status === 429) {
         toast.error("Devagar! Você está criando tarefas muito rápido", {
           duration: 4000,
           icon: "🚨",
@@ -56,7 +56,9 @@ const CreatePage = () => {
 
           <div className="card bg-base-100">
             <div className="card-body">
-              <h2 className="card-title text-2xl mb-4">Criar Nova Tarefa</h2>
+              <h2 className="card-title text-2xl mb-4">
+                Criar Nova Tarefa
+              </h2>
               <form onSubmit={handleSubmit}>
                 <div className="form-control mb-4">
                   <label className="label">

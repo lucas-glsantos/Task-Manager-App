@@ -9,6 +9,11 @@ export function saveSession({ token, refreshToken, user }) {
   if (user) localStorage.setItem(USER_KEY, JSON.stringify(user));
 }
 
+export function updateSessionTokens({ token, refreshToken }) {
+  if (token) localStorage.setItem(TOKEN_KEY, token);
+  if (refreshToken) localStorage.setItem(REFRESH_KEY, refreshToken);
+}
+
 export function clearSession() {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(REFRESH_KEY);
@@ -32,30 +37,29 @@ export function getStoredUser() {
   }
 }
 
-/**
- * Traduz qualquer falha de auth em UMA mensagem padrão de UI.
- * - Sem response (rede/servidor fora/CORS) -> mensagem de conexão.
- * - 401 no login -> "Email ou senha incorretos." (nunca revela se a conta existe).
- * - 400 -> detalhes do Joi ou "Email já cadastrado".
- * - 429 -> rate limit.
- */
 export function mapAuthError(error, { context = "login" } = {}) {
   if (!error?.response) {
     return "Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.";
   }
+  
   const status = error.response.status;
   const data = error.response.data || {};
 
+  // Código de status HTTP 429 Too Many Requests
   if (status === 429) {
     return "Muitas tentativas. Aguarde alguns minutos e tente novamente.";
   }
+
+  // Código de status HTTP 401 Unauthorized
   if (status === 401) {
     if (context === "login") return "Email ou senha incorretos.";
     return data.message || "Sessão expirada. Faça login novamente.";
   }
+
+  // Código de status HTTP 400 Bad Request
   if (status === 400) {
     if (data.message === "Email já cadastrado") {
-      return "Este email já está cadastrado. Tente fazer login.";
+      return "Este email já está cadastrado. Faça login novamente.";
     }
     if (Array.isArray(data.details) && data.details.length > 0) {
       return data.details.join(" ");

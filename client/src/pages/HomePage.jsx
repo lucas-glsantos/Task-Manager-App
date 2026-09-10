@@ -20,8 +20,7 @@ const HomePage = () => {
         setTasks(res.data);
         setIsRateLimited(false);
       } catch (error) {
-        console.log("Erro ao buscar tarefas");
-        console.log(error.response);
+        console.log("Erro ao buscar tarefas", error.response);
         if (error.response?.status === 429){
           setIsRateLimited(true);
         } else {
