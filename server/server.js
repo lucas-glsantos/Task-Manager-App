@@ -12,8 +12,6 @@ import authRoutes from "./src/routes/authRoutes.js";
 
 dotenv.config();
 
-setServers(["1.1.1.1", "8.8.8.8"]); // DNS públicos (evita querySrv ECONNREFUSED)
-
 const app = express();
 const PORT = process.env.PORT || 5000;
 const __filename = fileURLToPath(import.meta.url);
@@ -36,11 +34,21 @@ app.use(
 
 app.use(express.json());
 
+if (process.env.VERCEL) {
+	app.use("/api", async (req, res, next) => {
+		try {
+			await connectDB();
+			next();
+		} catch (error) {
+			next(error);
+		}
+	});
+}
+
 app.use("/api/auth", authRoutes);
 app.use("/api/tasks", protect, tasksRoutes);
-
-// 404 para rotas /api desconhecidas (antes do static)
-app.use("/api", (req, res) => res.status(404).json({ message: "Rota não encontrada" }));
+app.get("/api/health", (req, res) => res.json({ status: "ok" }));
+app.use("/api", (req, res) => res.status(404).json({ message: "Rota não encontrada" })); // 404 para rotas /api desconhecidas
 
 if (process.env.NODE_ENV === "production" && !process.env.VERCEL) {
 	const dist = path.join(__dirname, "../client/dist");
@@ -67,14 +75,21 @@ app.use((error, req, res, next) => {
 	return res.status(500).json({ message: "Erro interno no servidor" });
 });
 
-if (!process.env.VERCEL){
-	connectDB().then(() => {
-		app.listen(PORT, () => {
-			console.log("Servidor rodando na PORTA:", PORT);
+
+if (!process.env.VERCEL) {
+	try {
+		connectDB().then(() => {
+			app.listen(PORT, () => {
+				console.log(" ".repeat(50));
+				console.log(`servidor conectado na porta:${PORT}`);
+				console.log(" ".repeat(50));
+				console.log("-".repeat(50));
+			});
 		});
-	});
-} else {
-	connectDB(); // Conecta Lazy por invocação com cache
+		
+		await async (setServers(['1.1.1.1', '8.8.8.8'])); // DNS públicos (evita querySrv ECONNREFUSED)]);
+
+	} catch {}
 };
 
-export default server;
+export default app;

@@ -1,22 +1,41 @@
 import mongoose from "mongoose";
 
-let cached = globalThis._mongo;
-if (!cached) cached = globalThis._mongo = { promise: null };
+let cached = globalThis._mongo ||= { conn: null, promise: null };
 
 export const connectDB = async () => {
-	if (mongoose.connection.readyState === 1) return mongoose.connection;
+	if (cached.conn) return cached.conn;
+
+	if (!process.env.MONGODB_URI) throw new Error("erro na conexão. mongodb_uri ausente!");
 
 	if (!cached.promise) {
-		cached.promise = mongoose.connect(process.env.MONGODB_URI).then(mongo => mongo);
-	}
+		cached.promise = mongoose.connect(process.env.MONGODB_URI, { 
+			maxPoolSize: 10, 					// Reduz à 10 conexões máximas por instância
+			minPoolSize: 0,						// Não mantém conexões ociosas
+			maxIdleTimeMS: 30000,		 		// Fecha conexões ociosas após 30s
+			serverSelectionTimeoutMS: 30000,	// Falha após 30s se cluster não responder
+			bufferCommands: false				// Desativa Command Queue antes da conexão
+		 });
+		console.log("-".repeat(50));
+		console.log(" ".repeat(50));
+		console.log("conectando com mongodb_uri...")
+	};
 
 	try {
-		await cached.promise;
-		console.log("MONGODB CONECTADO COM SUCESSO!");
+		cached.conn = await cached.promise;
+		console.log("conexão com mongodb_uri estabelecida.")
+		console.log(" ".repeat(50));
+		console.log("-".repeat(50));
+		
+		return cached.conn;
+
 	} catch (error) {
 		cached.promise = null;
+
 		if (process.env.VERCEL) throw error; // Handler Global responde 500
-		console.error("ERRO NA CONEXAO COM MONGODB", error);
-		process.exit(1); // Sair com falha em localhost
+		console.error(`erro na conexão com mongodb_uri... ERROR:"${error}"`);
+		console.log(" ".repeat(50));
+		console.log("-".repeat(50));
+
+		throw error;
 	}
 };

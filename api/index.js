@@ -1,2 +1,2 @@
-import server from "../server/server.js";
-export default server;
+import app from "../server/server.js";
+export default app;
