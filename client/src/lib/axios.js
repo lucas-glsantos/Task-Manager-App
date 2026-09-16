@@ -1,15 +1,17 @@
 import axios from "axios";
-import { clearSession, getRefreshToken, getToken, updateSessionTokens } from "./auth";
+import { clearSession, getRefreshToken, getToken, tryRecover, updateSessionTokens } from "./auth";
 
 const BASE_URL = "/api";
 
 const api = axios.create({
-    baseURL : BASE_URL,
+    baseURL: BASE_URL,
     timeout: 15000,
 });
 
-// Anexa Bearer em toda requisição Autenticada
+// Anexa Bearer em toda requisição Autenticada, tenta sair do degradado antes (probe barato, mantém reativo sem timer)
 api.interceptors.request.use((config) => {
+    tryRecover();
+    
     const token = getToken();
 
     if (token) {
@@ -20,41 +22,58 @@ api.interceptors.request.use((config) => {
 
 let refreshPromise = null;
 
+
+// Função responsável por renovar os Tokens de Autenticação de forma segura
+// Garante que o Usuário continue Logado sem precisar digitar a senha novamente
 function refresh() {
     if (!refreshPromise) {
+        tryRecover();
+
         const refreshTk = getRefreshToken();
 
         if (!refreshTk) return Promise.reject(new Error("no-refresh-token"));
 
-        // Axios puro sem interceptors
+        // Axios puro sem interceptors (Evita Loop)
         refreshPromise = axios
             .post(`${BASE_URL}/auth/refresh`, { refreshToken: refreshTk }, { timeout: 15000 })
             .then((res) => {
-                updateSessionTokens({
+                const success = updateSessionTokens({
                     token: res.data.token,
                     refreshToken: res.data.refreshToken
                 });
+
+                if (!success) {
+                    window.dispatchEvent(new CustomEvent("auth:storage-unavailable"));
+                    throw new Error("SessionUnavailable");
+                }
+
                 return res.data.token;
             })
             .catch((error) => {
-                clearSession();
-                // Avisa AuthContext que tem "setUser" sem acoplar router
-                window.dispatchEvent(new CustomEvent("auth:session-expired"));
+                // Só erro definitivo invalida sessão (regra 7d). Rede/429/500 preservam
+                const Status = error.response?.status;
+                if (Status === 401 || Status === 403 || error.message === "no-refresh-token" || error.message === "SessionUnavailable") {
+                    clearSession();
+                    window.dispatchEvent(new CustomEvent("auth:session-expired"));
+                }
                 throw error;
             })
             .finally(() => {
                 // Finally roda somente após then/catch propagarem liberando próxima expiração
-                const propagate = refreshPromise;
                 refreshPromise = null;
-                return propagate;
             });
     }
     return refreshPromise;
-}
+};
 
+
+// Função responsável pela Segurança verificando se a requisição é Login, Cadastro ou Renovação de Token
 const includeAuthUrl = (url = "") =>
     url.includes("/auth/login") || url.includes("/auth/register") || url.includes("/auth/refresh");
 
+// Interceptador global do Axios que observa todas as respostas retornadas pela API
+// Se Resposta for Success apenas repassa
+// Se Resposta for Error 401, chama a função refresh() para buscar um Novo Token e caso Success, refaz a requisição Original com o Token Atualizado
 api.interceptors.response.use(
     (res) => res,
     async (error) => {
