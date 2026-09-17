@@ -78,18 +78,17 @@ app.use((error, req, res, next) => {
 
 if (!process.env.VERCEL) {
 	try {
-		connectDB().then(() => {
-			app.listen(PORT, () => {
-				console.log(" ".repeat(50));
-				console.log(`servidor conectado na porta:${PORT}`);
-				console.log(" ".repeat(50));
-				console.log("-".repeat(50));
-			});
-		});
-		
-		await async (setServers(['1.1.1.1', '8.8.8.8'])); // DNS públicos (evita querySrv ECONNREFUSED)]);
-
+		setServers(['1.1.1.1', '8.8.8.8']); // DNS públicos (evita querySrv ECONNREFUSED)
 	} catch {}
+
+	connectDB().then(() => {
+		app.listen(PORT, () => {
+			console.log(" ".repeat(50));
+			console.log(`servidor conectado na porta:${PORT}`);
+			console.log(" ".repeat(50));
+			console.log("-".repeat(50));
+		});
+	});
 };
 
 export default app;
