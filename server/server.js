@@ -24,9 +24,7 @@ const allowedOrigin = [process.env.CLIENT_ORIGIN, "http://localhost:5173"].filte
 app.use(
 	cors({
 		origin: (origin, cb) => {
-			// Se a API for APENAS para Web, remova a linha abaixo. 
-            // Mantenha apenas se tiver App Mobile ou comunicação entre servidores.
-            // if (!origin) return cb(null, true);
+			if (!origin) return cb(null, true);
 
 			if (allowedOrigin.includes(origin)) return cb(null, true);
 			
