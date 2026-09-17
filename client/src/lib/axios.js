@@ -6,6 +6,7 @@ const BASE_URL = "/api";
 const api = axios.create({
     baseURL: BASE_URL,
     timeout: 15000,
+    withCredentials: true,
 });
 
 // Anexa Bearer em toda requisição Autenticada, tenta sair do degradado antes (probe barato, mantém reativo sem timer)

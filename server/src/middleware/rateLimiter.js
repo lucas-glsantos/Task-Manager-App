@@ -1,15 +1,17 @@
 import ratelimit from "../config/upstash.js";
 
-// Reserva: o rate limiting ativo hoje é o express-rate-limit nas authRoutes.
-// Este middleware Upstash fica disponível para uso futuro com chave por IP
-// (a versão anterior usava chave estática "my-rate-limit", que fazia todos
-// os usuários dividirem o mesmo bucket — um usuário abusivo bloqueava todos).
+// Middleware usado para evitar que a API receba um volume abusivo de requisições protegendo contra ataques ou sobrecarga
 const rateLimiter = async (req, res, next) => {
 	try {
-		const key = req.ip || req.headers["x-forwarded-for"] || "global";
-		const { success } = await ratelimit.limit(key);
+		const ip = req.ip || "global";
+
+		// Limita por Ip ou Usuário (Se já Logado)
+		const identifier = req.user?.id ? `user:${req.user.id}` : `ip:${ip}`;
+
+		const { success } = await ratelimit.limit(identifier);
 
 		if (!success) {
+			res.set("Retry-After", 60);
 			return res.status(429).json({
 				message: "Muitos pedidos, tente novamente mais tarde...",
 			});
@@ -17,7 +19,8 @@ const rateLimiter = async (req, res, next) => {
 
 		return next();
 	} catch (error) {
-		console.log("Erro Rate limit (fail-open)", error);
+		// Fail-open se Redis/Memória falhar, evitar derrubar API
+		console.log("Erro no serviço de Rate Limit", error);
 		return next();
 	}
 };

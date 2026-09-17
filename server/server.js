@@ -13,6 +13,8 @@ import authRoutes from "./src/routes/authRoutes.js";
 dotenv.config();
 
 const app = express();
+app.set("trust proxy", 1);
+
 const PORT = process.env.PORT || 5000;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -22,13 +24,24 @@ const allowedOrigin = [process.env.CLIENT_ORIGIN, "http://localhost:5173"].filte
 app.use(
 	cors({
 		origin: (origin, cb) => {
-			if (!origin) return cb(null, true);
-			if (allowedOrigin.includes(origin)) return cb(null, true);
-			if (process.env.VERCEL_ENV === "preview" && origin.endsWith(".vercel.app")) return cb(null, true);
+			// Se a API for APENAS para Web, remova a linha abaixo. 
+            // Mantenha apenas se tiver App Mobile ou comunicação entre servidores.
+            // if (!origin) return cb(null, true);
 
-			return cb(new Error("Error CORS"));
+			if (allowedOrigin.includes(origin)) return cb(null, true);
+			
+			if (process.env.VERCEL_ENV === "preview") {
+				const taskManager =
+					origin.startsWith("https://web-taskmanager.vercel.app") &&
+					origin.endsWith(".vercel.app");
+
+				if (taskManager) return cb(null, true);
+			}
+
+			// Bloqueio Padrão
+			return cb(new Error("Bloqueado pela pólítica de CORS."));
 		},
-		credentials: true,
+		credentials: true, // Permite envio de cookies/tokens de sessão
 	}),
 );
 
